@@ -1,0 +1,130 @@
+diff -ru a/isp-mode-select-csi1.sh b/isp-mode-select-csi1.sh
+--- a/isp-mode-select-csi1.sh	2025-01-31 15:05:24.097428870 +0100
++++ b/isp-mode-select-csi1.sh	2025-01-31 15:04:08.422011906 +0100
+@@ -111,6 +111,61 @@
+ 	COLOR="col"
+ fi
+ 
++if [ "$SENSOR_NAME" = "vc-mipi-cam" ] ; then
++	SENSOR_TYPE=$(i2cdump -f -y 2 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++
++	case "${SENSOR_TYPE}" in
++        IMX178|IMX178C) WIDTH=3072; HEIGHT=2048 ;;
++        IMX183|IMX183C) WIDTH=5440; HEIGHT=3648 ;;
++        IMX226|IMX226C) WIDTH=3904; HEIGHT=3000 ;;
++        IMX250|IMX250C) WIDTH=2432; HEIGHT=2048 ;;
++        IMX252|IMX252C) WIDTH=2048; HEIGHT=1536 ;;
++        IMX264|IMX264C) WIDTH=2432; HEIGHT=2048 ;;
++        IMX265|IMX265C) WIDTH=2048; HEIGHT=1536 ;;
++        IMX273|IMX273C) WIDTH=1440; HEIGHT=1080 ;;
++        IMX290|IMX290C) WIDTH=1920; HEIGHT=1080 ;;
++        IMX296|IMX296C) WIDTH=1440; HEIGHT=1080 ;;
++        IMX297|IMX297C) WIDTH=704;  HEIGHT=540  ;;
++        IMX327|IMX327C) WIDTH=1920; HEIGHT=1080 ;;
++        IMX335|IMX335C) WIDTH=2592; HEIGHT=1944 ;;
++        IMX392|IMX392C) WIDTH=1920; HEIGHT=1200 ;;
++        IMX412|IMX412C) WIDTH=4032; HEIGHT=3040 ;;
++        IMX415|IMX415C) WIDTH=3840; HEIGHT=2160 ;;
++        IMX462|IMX462C) WIDTH=1920; HEIGHT=1080 ;;
++        IMX565|IMX565C) WIDTH=4128; HEIGHT=3000 ;;
++        IMX566|IMX566C) WIDTH=2848; HEIGHT=2848 ;;
++        IMX567|IMX567C) WIDTH=2464; HEIGHT=2064 ;;
++        IMX568|IMX568C) WIDTH=2464; HEIGHT=2064 ;;
++        IMX900|IMX900C) WIDTH=2048; HEIGHT=1536 ;;
++        OV7251|OV7251C) WIDTH=640;  HEIGHT=480  ;;
++        OV9281|OV9281C) WIDTH=1280; HEIGHT=800  ;;
++		* ) echo "Unknown Sensor Type: ${SENSOR_TYPE}"; exit 1
++	esac
++
++	DWE_FILE="/opt/imx8-isp/bin/dwe/vc_${SENSOR_TYPE}_dewarp.json"
++	DWE_TEMPLATE="/opt/imx8-isp/bin/vc_mipi_dewarp_template.json"
++	XML_FILE="/opt/imx8-isp/bin/xml/vc_${SENSOR_TYPE}_tuning.xml"
++	XML_TEMPLATE="/opt/imx8-isp/bin/vc_mipi_tuning_template_${COLOR}.xml"
++	ISP_SENSOR_FILE="/opt/imx8-isp/bin/Sensor0_Entry.cfg"
++	SENSOR_FILE="${ISP_SENSOR_FILE}.${SENSOR_TYPE}"
++
++	sed -e "s/{width}/${WIDTH}/g" -e "s/{height}/${HEIGHT}/g" "${DWE_TEMPLATE}" > "${DWE_FILE}"
++	sed -e "s/{width}/${WIDTH}/g" -e "s/{height}/${HEIGHT}/g" "${XML_TEMPLATE}" > "${XML_FILE}"
++
++
++	echo "name=\"vc-mipi-vvcam\"" > "${SENSOR_FILE}"
++	echo "drv = \"vc-mipi.drv\"" >> "${SENSOR_FILE}"
++	echo "mode= 0" >> "${SENSOR_FILE}"
++	echo "" >> "${SENSOR_FILE}"
++	echo "[mode.0]" >> "${SENSOR_FILE}"
++	echo "xml = \"${XML_FILE}\"" >> "${SENSOR_FILE}"
++	echo "dwe = \"${DWE_FILE}\"" >> "${SENSOR_FILE}"
++
++	ln -sf "${SENSOR_FILE}" "${ISP_SENSOR_FILE}"
++
++	exit 0
++fi
++
+ if [ $LIST_MODES = 1 ] ; then
+ 	display_modes ${SENSOR_NAME}
+ fi
+diff -ru a/isp-mode-select-csi2.sh b/isp-mode-select-csi2.sh
+--- a/isp-mode-select-csi2.sh	2025-01-31 15:05:24.097428870 +0100
++++ b/isp-mode-select-csi2.sh	2025-01-31 15:04:08.422011906 +0100
+@@ -116,6 +116,61 @@
+ 	COLOR="col"
+ fi
+ 
++if [ "$SENSOR_NAME" = "vc-mipi-cam" ] ; then
++	SENSOR_TYPE=$(i2cdump -f -y 1 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++
++	case "${SENSOR_TYPE}" in
++        IMX178|IMX178C) WIDTH=3072; HEIGHT=2048 ;;
++        IMX183|IMX183C) WIDTH=5440; HEIGHT=3648 ;;
++        IMX226|IMX226C) WIDTH=3904; HEIGHT=3000 ;;
++        IMX250|IMX250C) WIDTH=2432; HEIGHT=2048 ;;
++        IMX252|IMX252C) WIDTH=2048; HEIGHT=1536 ;;
++        IMX264|IMX264C) WIDTH=2432; HEIGHT=2048 ;;
++        IMX265|IMX265C) WIDTH=2048; HEIGHT=1536 ;;
++        IMX273|IMX273C) WIDTH=1440; HEIGHT=1080 ;;
++        IMX290|IMX290C) WIDTH=1920; HEIGHT=1080 ;;
++        IMX296|IMX296C) WIDTH=1440; HEIGHT=1080 ;;
++        IMX297|IMX297C) WIDTH=704;  HEIGHT=540  ;;
++        IMX327|IMX327C) WIDTH=1920; HEIGHT=1080 ;;
++        IMX335|IMX335C) WIDTH=2592; HEIGHT=1944 ;;
++        IMX392|IMX392C) WIDTH=1920; HEIGHT=1200 ;;
++        IMX412|IMX412C) WIDTH=4032; HEIGHT=3040 ;;
++        IMX415|IMX415C) WIDTH=3840; HEIGHT=2160 ;;
++        IMX462|IMX462C) WIDTH=1920; HEIGHT=1080 ;;
++        IMX565|IMX565C) WIDTH=4128; HEIGHT=3000 ;;
++        IMX566|IMX566C) WIDTH=2848; HEIGHT=2848 ;;
++        IMX567|IMX567C) WIDTH=2464; HEIGHT=2064 ;;
++        IMX568|IMX568C) WIDTH=2464; HEIGHT=2064 ;;
++        IMX900|IMX900C) WIDTH=2048; HEIGHT=1536 ;;
++        OV7251|OV7251C) WIDTH=640;  HEIGHT=480  ;;
++        OV9281|OV9281C) WIDTH=1280; HEIGHT=800  ;;
++		* ) echo "Unknown Sensor Type: ${SENSOR_TYPE}"; exit 1
++	esac
++
++	DWE_FILE="/opt/imx8-isp/bin/dwe/vc_${SENSOR_TYPE}_dewarp.json"
++	DWE_TEMPLATE="/opt/imx8-isp/bin/vc_mipi_dewarp_template.json"
++	XML_FILE="/opt/imx8-isp/bin/xml/vc_${SENSOR_TYPE}_tuning.xml"
++	XML_TEMPLATE="/opt/imx8-isp/bin/vc_mipi_tuning_template_${COLOR}.xml"
++	ISP_SENSOR_FILE="/opt/imx8-isp/bin/Sensor1_Entry.cfg"
++	SENSOR_FILE="${ISP_SENSOR_FILE}.${SENSOR_TYPE}"
++
++	sed -e "s/{width}/${WIDTH}/g" -e "s/{height}/${HEIGHT}/g" "${DWE_TEMPLATE}" > "${DWE_FILE}"
++	sed -e "s/{width}/${WIDTH}/g" -e "s/{height}/${HEIGHT}/g" "${XML_TEMPLATE}" > "${XML_FILE}"
++
++
++	echo "name=\"vc-mipi-vvcam\"" > "${SENSOR_FILE}"
++	echo "drv = \"vc-mipi.drv\"" >> "${SENSOR_FILE}"
++	echo "mode= 0" >> "${SENSOR_FILE}"
++	echo "" >> "${SENSOR_FILE}"
++	echo "[mode.0]" >> "${SENSOR_FILE}"
++	echo "xml = \"${XML_FILE}\"" >> "${SENSOR_FILE}"
++	echo "dwe = \"${DWE_FILE}\"" >> "${SENSOR_FILE}"
++
++	ln -sf "${SENSOR_FILE}" "${ISP_SENSOR_FILE}"
++
++	exit 0
++fi
++
+ if [ $LIST_MODES = 1 ] ; then
+ 	display_modes ${SENSOR_NAME}
+ fi
