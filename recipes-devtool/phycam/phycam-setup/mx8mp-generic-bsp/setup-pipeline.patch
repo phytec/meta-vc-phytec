@@ -1,0 +1,153 @@
+diff -ru a/setup-pipeline-csi1.sh b/setup-pipeline-csi1.sh
+--- a/setup-pipeline-csi1.sh	2025-02-06 14:47:26.924385892 +0100
++++ b/setup-pipeline-csi1.sh	2025-02-06 14:56:29.048021462 +0100
+@@ -89,17 +89,58 @@
+ 		SENSOR_RES="2592x1944"
+ 		OFFSET_SENSOR="(4,4)"
+ 		;;
++	vc-mipi-cam )
++		I2C_BUS=$(echo "${CAM_ENT}" | sed 's/.* \([0-9]\)-[0-9]\+.*/\1/g')
++		SENSOR_TYPE=$(i2cdump -f -y ${I2C_BUS} 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++		case "${SENSOR_TYPE}" in
++		IMX178|IMX178C)	 SENSOR_RES="3072x2048"; BITS="8"; ISP_BITS="12" ;;
++		IMX183|IMX183C)  SENSOR_RES="5440x3648"; BITS="10"; ISP_BITS="12" ;;
++		IMX226|IMX226C)  SENSOR_RES="3904x3000"; BITS="10"; ISP_BITS="12" ;;
++		IMX250|IMX250C)  SENSOR_RES="2432x2048"; BITS="8"; ISP_BITS="12" ;;
++		IMX252|IMX252C)  SENSOR_RES="2048x1536"; BITS="8"; ISP_BITS="12" ;;
++		IMX264|IMX264C)  SENSOR_RES="2432x2048"; BITS="8"; ISP_BITS="12" ;;
++		IMX265|IMX265C)  SENSOR_RES="2048x1536"; BITS="8"; ISP_BITS="12" ;;
++		IMX273|IMX273C)  SENSOR_RES="1440x1080"; BITS="8"; ISP_BITS="12" ;;
++		IMX290|IMX290C)  SENSOR_RES="1920x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX296|IMX296C)  SENSOR_RES="1440x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX297|IMX297C)  SENSOR_RES="704x540"; BITS="10"; ISP_BITS="10" ;;
++		IMX327|IMX327C)  SENSOR_RES="1920x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX335|IMX335C)  SENSOR_RES="2592x1944"; BITS="10"; ISP_BITS="12" ;;
++		IMX392|IMX392C)  SENSOR_RES="1920x1200"; BITS="8"; ISP_BITS="12" ;;
++		IMX412|IMX412C)  SENSOR_RES="4032x3040"; BITS="10"; ISP_BITS="12" ;;
++		IMX415|IMX415C)  SENSOR_RES="3840x2160"; BITS="10"; ISP_BITS="12" ;;
++		IMX462|IMX462C)  SENSOR_RES="1920x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX565|IMX565C)  SENSOR_RES="4128x3000"; BITS="8"; ISP_BITS="12" ;;
++		IMX566|IMX566C)  SENSOR_RES="2848x2848"; BITS="8"; ISP_BITS="12" ;;
++		IMX567|IMX567C)  SENSOR_RES="2464x2064"; BITS="8"; ISP_BITS="12" ;;
++		IMX568|IMX568C)  SENSOR_RES="2464x2064"; BITS="8"; ISP_BITS="12" ;;
++		IMX900|IMX900C)  SENSOR_RES="2048x1536"; BITS="8"; ISP_BITS="12" ;;
++		OV7251|OV7251C)  SENSOR_RES="640x480"; BITS="8"; ISP_BITS="10" ;;
++		OV9281|OV9281C)  SENSOR_RES="1280x800"; BITS="8"; ISP_BITS="10" ;;
++		esac
++
++		if [ "$IFACE" = "ISP" ] ; then
++			BITS="$ISP_BITS"
++		fi
++
++		CAM_BW_FMT="Y${BITS}_1X${BITS}"
++		CAM_COL_FMT="SRGGB${BITS}_1X${BITS}"
++		OFFSET_SENSOR="(0,0)"
++		;;
+ 	* ) echo "Unknown camera" ; exit 1
+ esac
+ 
+ if [ "$IFACE" = "ISP" ] ; then
+-	SENSOR_FILE="/opt/imx8-isp/bin/Sensor0_Entry.cfg"
+-	if [ ! -L $SENSOR_FILE ] ; then
+-		echo "Sensor0_Entry.cfg Link not set" ; exit 1
++
++	if [ ! "$(echo "${CAM_ENT}" | cut -d" " -f1)" = "vc-mipi-cam" ] ; then
++		SENSOR_FILE="/opt/imx8-isp/bin/Sensor0_Entry.cfg"
++		if [ ! -L $SENSOR_FILE ] ; then
++			echo "Sensor0_Entry.cfg Link not set" ; exit 1
++		fi
++		MODE=$(grep "mode= " ${SENSOR_FILE} | cut -d " " -f2)
++		XML_FILE=$(grep -A1 "mode\.${MODE}" ${SENSOR_FILE} | grep -o "VM-.*\.xml")
++		SENSOR_RES=$(echo "${XML_FILE}" | sed 's/.*_\([0-9]\+x[0-9]\+\).*/\1/g')
+ 	fi
+-	MODE=$(grep "mode= " ${SENSOR_FILE} | cut -d " " -f2)
+-	XML_FILE=$(grep -A1 "mode\.${MODE}" ${SENSOR_FILE} | grep -o "VM-.*\.xml")
+-	SENSOR_RES=$(echo "${XML_FILE}" | sed 's/.*_\([0-9]\+x[0-9]\+\).*/\1/g')
+ 
+ 	case $(echo "${CAM_ENT}" | cut -d" " -f1) in
+ 		ar0144 )
+@@ -114,6 +155,8 @@
+ 			CAM_BW_FMT="Y12_1X12"
+ 			CAM_COL_FMT="SGRBG12_1X12"
+ 			;;
++		vc-mipi-cam )
++			;;
+ 		* ) echo "Unknown camera" ; exit 1
+ 	esac
+ fi
+diff -ru a/setup-pipeline-csi2.sh b/setup-pipeline-csi2.sh
+--- a/setup-pipeline-csi2.sh	2025-02-06 14:47:26.924385892 +0100
++++ b/setup-pipeline-csi2.sh	2025-02-06 14:57:08.715706545 +0100
+@@ -89,17 +89,57 @@
+ 		SENSOR_RES="2592x1944"
+ 		OFFSET_SENSOR="(4,4)"
+ 		;;
++	vc-mipi-cam )
++		I2C_BUS=$(echo "${CAM_ENT}" | sed 's/.* \([0-9]\)-[0-9]\+.*/\1/g')
++		SENSOR_TYPE=$(i2cdump -f -y ${I2C_BUS} 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++		case "${SENSOR_TYPE}" in
++		IMX178|IMX178C)	 SENSOR_RES="3072x2048"; BITS="8"; ISP_BITS="12" ;;
++		IMX183|IMX183C)  SENSOR_RES="5440x3648"; BITS="10"; ISP_BITS="12" ;;
++		IMX226|IMX226C)  SENSOR_RES="3904x3000"; BITS="10"; ISP_BITS="12" ;;
++		IMX250|IMX250C)  SENSOR_RES="2432x2048"; BITS="8"; ISP_BITS="12" ;;
++		IMX252|IMX252C)  SENSOR_RES="2048x1536"; BITS="8"; ISP_BITS="12" ;;
++		IMX264|IMX264C)  SENSOR_RES="2432x2048"; BITS="8"; ISP_BITS="12" ;;
++		IMX265|IMX265C)  SENSOR_RES="2048x1536"; BITS="8"; ISP_BITS="12" ;;
++		IMX273|IMX273C)  SENSOR_RES="1440x1080"; BITS="8"; ISP_BITS="12" ;;
++		IMX290|IMX290C)  SENSOR_RES="1920x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX296|IMX296C)  SENSOR_RES="1440x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX297|IMX297C)  SENSOR_RES="704x540"; BITS="10"; ISP_BITS="10" ;;
++		IMX327|IMX327C)  SENSOR_RES="1920x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX335|IMX335C)  SENSOR_RES="2592x1944"; BITS="10"; ISP_BITS="12" ;;
++		IMX392|IMX392C)  SENSOR_RES="1920x1200"; BITS="8"; ISP_BITS="12" ;;
++		IMX412|IMX412C)  SENSOR_RES="4032x3040"; BITS="10"; ISP_BITS="12" ;;
++		IMX415|IMX415C)  SENSOR_RES="3840x2160"; BITS="10"; ISP_BITS="12" ;;
++		IMX462|IMX462C)  SENSOR_RES="1920x1080"; BITS="10"; ISP_BITS="10" ;;
++		IMX565|IMX565C)  SENSOR_RES="4128x3000"; BITS="8"; ISP_BITS="12" ;;
++		IMX566|IMX566C)  SENSOR_RES="2848x2848"; BITS="8"; ISP_BITS="12" ;;
++		IMX567|IMX567C)  SENSOR_RES="2464x2064"; BITS="8"; ISP_BITS="12" ;;
++		IMX568|IMX568C)  SENSOR_RES="2464x2064"; BITS="8"; ISP_BITS="12" ;;
++		IMX900|IMX900C)  SENSOR_RES="2048x1536"; BITS="8"; ISP_BITS="12" ;;
++		OV7251|OV7251C)  SENSOR_RES="640x480"; BITS="8"; ISP_BITS="10" ;;
++		OV9281|OV9281C)  SENSOR_RES="1280x800"; BITS="8"; ISP_BITS="10" ;;
++		esac
++
++		if [ "$IFACE" = "ISP" ] ; then
++			BITS="$ISP_BITS"
++		fi
++
++		CAM_BW_FMT="Y${BITS}_1X${BITS}"
++		CAM_COL_FMT="SRGGB${BITS}_1X${BITS}"
++		OFFSET_SENSOR="(0,0)"
++		;;
+ 	* ) echo "Unknown camera" ; exit 1
+ esac
+ 
+ if [ "$IFACE" = "ISP" ] ; then
+-	SENSOR_FILE="/opt/imx8-isp/bin/Sensor1_Entry.cfg"
+-	if [ ! -L $SENSOR_FILE ] ; then
+-		echo "Sensor1_Entry.cfg Link so set" ; exit 1
++	if [ ! "$(echo "${CAM_ENT}" | cut -d" " -f1)" = "vc-mipi-cam" ] ; then
++		SENSOR_FILE="/opt/imx8-isp/bin/Sensor1_Entry.cfg"
++		if [ ! -L $SENSOR_FILE ] ; then
++			echo "Sensor1_Entry.cfg Link so set" ; exit 1
++		fi
++		MODE=$(grep "mode= " ${SENSOR_FILE} | cut -d " " -f2)
++		XML_FILE=$(grep -A1 "mode\.${MODE}" ${SENSOR_FILE} | grep -o "VM-.*\.xml")
++		SENSOR_RES=$(echo "${XML_FILE}" | sed 's/.*_\([0-9]\+x[0-9]\+\).*/\1/g')
+ 	fi
+-	MODE=$(grep "mode= " ${SENSOR_FILE} | cut -d " " -f2)
+-	XML_FILE=$(grep -A1 "mode\.${MODE}" ${SENSOR_FILE} | grep -o "VM-.*\.xml")
+-	SENSOR_RES=$(echo "${XML_FILE}" | sed 's/.*_\([0-9]\+x[0-9]\+\).*/\1/g')
+ 
+ 	case $(echo "${CAM_ENT}" | cut -d" " -f1) in
+ 		ar0144 )
+@@ -114,6 +154,8 @@
+ 			CAM_BW_FMT="Y12_1X12"
+ 			CAM_COL_FMT="SGRBG12_1X12"
+ 			;;
++		vc-mipi-cam )
++			;;
+ 		* ) echo "Unknown camera" ; exit 1
+ 	esac
+ fi

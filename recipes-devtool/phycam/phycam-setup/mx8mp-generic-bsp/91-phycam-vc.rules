@@ -1,0 +1,27 @@
+# VisionComponents MIPI Cam (Sony) on CSI1
+ACTION=="add", \
+	SUBSYSTEM=="video4linux", \
+	ATTR{name}=="vc-mipi-cam 2-001a", \
+	KERNELS=="30a40000.i2c", \
+	SYMLINK+="cam-csi1", \
+
+# VisionComponents MIPI Cam (OmniVision) on CSI1
+ACTION=="add", \
+	SUBSYSTEM=="video4linux", \
+	ATTR{name}=="vc-mipi-cam 2-0060", \
+	KERNELS=="30a40000.i2c", \
+	SYMLINK+="cam-csi1", \
+
+# VisionComponents MIPI Cam (Sony) on CSI2
+ACTION=="add", \
+	SUBSYSTEM=="video4linux", \
+	ATTR{name}=="vc-mipi-cam 1-001a", \
+	KERNELS=="30a30000.i2c", \
+	SYMLINK+="cam-csi2", \
+
+# VisionComponents MIPI Cam (OmniVision) on CSI2
+ACTION=="add", \
+	SUBSYSTEM=="video4linux", \
+	ATTR{name}=="vc-mipi-cam 1-0060", \
+	KERNELS=="30a30000.i2c", \
+	SYMLINK+="cam-csi2", \
