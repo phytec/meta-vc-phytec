@@ -1,0 +1,75 @@
+From 3f5fcf30eebe689c48d763439166b2e727fbc37a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Stefan=20Riedm=C3=BCller?= <s.riedmueller@phytec.de>
+Date: Fri, 31 Jan 2025 14:00:55 +0100
+Subject: [PATCH] Fix build with linux 6.6
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Stefan Riedmüller <s.riedmueller@phytec.de>
+---
+ vc_mipi_camera.c  | 8 +++-----
+ vc_mipi_modules.c | 4 ++--
+ 2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/vc_mipi_camera.c b/vc_mipi_camera.c
+index 6bde2ed0c3f3..b300bfee0d6b 100644
+--- a/vc_mipi_camera.c
++++ b/vc_mipi_camera.c
+@@ -973,7 +973,7 @@ error_power_off:
+         return ret;
+ }
+ 
+-static int vc_remove(struct i2c_client *client)
++static void vc_remove(struct i2c_client *client)
+ {
+         struct v4l2_subdev *sd = i2c_get_clientdata(client);
+         struct vc_device *device = to_vc_device(sd);
+@@ -995,8 +995,6 @@ static int vc_remove(struct i2c_client *client)
+ 
+         vc_set_power(device, 0);
+         vc_core_release(&device->cam);
+-
+-        return 0;
+ }
+ 
+ #ifdef ENABLE_PM
+@@ -1036,7 +1034,7 @@ static struct i2c_driver vc_i2c_driver = {
+                 .of_match_table = vc_dt_ids,
+         },
+         .id_table = vc_id,
+-        .probe_new = vc_probe,
++        .probe = vc_probe,
+         .remove   = vc_remove,
+ };
+ 
+@@ -1048,4 +1046,4 @@ MODULE_AUTHOR("Peter Martienssen, Liquify Consulting <peter.martienssen@liquify-
+ MODULE_LICENSE("GPL v2");
+ 
+ module_param(debug, int, 0644);
+-MODULE_PARM_DESC(debug, "Debug level (0-6)");
+\ No newline at end of file
++MODULE_PARM_DESC(debug, "Debug level (0-6)");
+diff --git a/vc_mipi_modules.c b/vc_mipi_modules.c
+index 58736d35b9b5..14c362af59d4 100644
+--- a/vc_mipi_modules.c
++++ b/vc_mipi_modules.c
+@@ -50,7 +50,7 @@
+ 
+ int vc_mod_is_color_sensor(struct vc_desc *desc)
+ {
+-        if (desc->sen_type) {
++        if (*desc->sen_type) {
+                 __u32 len = strnlen(desc->sen_type, 16);
+                 if (len > 0 && len < 17) {
+                         return *(desc->sen_type + len - 1) == 'C';
+@@ -1042,4 +1042,4 @@ int vc_mod_ctrl_init(struct vc_ctrl* ctrl, struct vc_desc* desc)
+         }
+ 
+         return 0;
+-}
+\ No newline at end of file
++}
+-- 
+2.25.1
+
