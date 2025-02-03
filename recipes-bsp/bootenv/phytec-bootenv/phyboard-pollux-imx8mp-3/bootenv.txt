@@ -1,0 +1,1 @@
+overlays=conf-imx8mp-phyboard-pollux-peb-av-10.dtbo#conf-imx8mp-phyboard-pollux-isi-csi1.dtbo#conf-imx8mp-phyboard-pollux-isp-csi1.dtbo#conf-imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtbo
