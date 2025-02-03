@@ -1,0 +1,291 @@
+From 524612e80f8e063f9fd5cc056b9914fab2be81a6 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Stefan=20Riedm=C3=BCller?= <s.riedmueller@phytec.de>
+Date: Wed, 29 Jan 2025 16:41:23 +0100
+Subject: [PATCH] arm64: dts: phyboard-pollux: Add Overlays for vision
+ components
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Stefan Riedmüller <s.riedmueller@phytec.de>
+---
+ arch/arm64/boot/dts/freescale/Makefile        | 12 +++++
+ ...p-phyboard-pollux-vc-sony-2lanes-csi1.dtso | 53 +++++++++++++++++++
+ ...p-phyboard-pollux-vc-sony-2lanes-csi2.dtso | 53 +++++++++++++++++++
+ ...p-phyboard-pollux-vc-sony-4lanes-csi1.dtso | 53 +++++++++++++++++++
+ ...p-phyboard-pollux-vc-sony-4lanes-csi2.dtso | 53 +++++++++++++++++++
+ 5 files changed, 224 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi1.dtso
+ create mode 100644 arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi2.dtso
+ create mode 100644 arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtso
+ create mode 100644 arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi2.dtso
+
+diff --git a/arch/arm64/boot/dts/freescale/Makefile b/arch/arm64/boot/dts/freescale/Makefile
+index 89183c1eb27c..8e76f01c1498 100644
+--- a/arch/arm64/boot/dts/freescale/Makefile
++++ b/arch/arm64/boot/dts/freescale/Makefile
+@@ -172,6 +172,14 @@ imx8mp-phyboard-pollux-vm020-csi2-fpdlink-port0-dtbs += imx8mp-phyboard-pollux-r
+ 			  imx8mp-phyboard-pollux-vm020-csi2-fpdlink-port0.dtbo
+ imx8mp-phyboard-pollux-vm020-csi2-fpdlink-port1-dtbs += imx8mp-phyboard-pollux-rdk.dtb \
+ 			  imx8mp-phyboard-pollux-vm020-csi2-fpdlink-port1.dtbo
++imx8mp-phyboard-pollux-vc-sony-2lanes-csi1-dtbs += imx8mp-phyboard-pollux-rdk.dtb \
++			  imx8mp-phyboard-pollux-vc-sony-2lanes-csi1.dtbo
++imx8mp-phyboard-pollux-vc-sony-4lanes-csi1-dtbs += imx8mp-phyboard-pollux-rdk.dtb \
++			  imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtbo
++imx8mp-phyboard-pollux-vc-sony-2lanes-csi2-dtbs += imx8mp-phyboard-pollux-rdk.dtb \
++			  imx8mp-phyboard-pollux-vc-sony-2lanes-csi2.dtbo
++imx8mp-phyboard-pollux-vc-sony-4lanes-csi2-dtbs += imx8mp-phyboard-pollux-rdk.dtb \
++			  imx8mp-phyboard-pollux-vc-sony-4lanes-csi2.dtbo
+ 
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-isi-csi1.dtb
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-isi-csi2.dtb
+@@ -201,6 +209,10 @@ dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vm020-csi1-fpdlink-port1.dtb
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vm020-csi2.dtb
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vm020-csi2-fpdlink-port0.dtb
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vm020-csi2-fpdlink-port1.dtb
++dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vc-sony-2lanes-csi1.dtb
++dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtb
++dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vc-sony-2lanes-csi2.dtb
++dtb-$(CONFIG_ARCH_MXC) += imx8mp-phyboard-pollux-vc-sony-4lanes-csi2.dtb
+ 
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-ab2.dtb
+ dtb-$(CONFIG_ARCH_MXC) += imx8mp-navq.dtb imx8mp-navq-ov5640-ov5645.dts imx8mp-navq-ov5647-ov5640.dts
+diff --git a/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi1.dtso b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi1.dtso
+new file mode 100644
+index 000000000000..00af65786673
+--- /dev/null
++++ b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi1.dtso
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier:_(GPL-2.0+_OR_MIT)
++/*
++ * Copyright (C) 2025 PHYTEC Messtechnik GmbH
++ * Author: Stefan Riedmüller <s.riedmueller@phytec.de>
++ */
++
++/dts-v1/;
++/plugin/;
++
++/*
++ * Sony Sensor Lane Support:
++ * -------------------------
++ *  2   Lanes: IMX264, IMX265
++ *  2,4 Lanes: IMX178, IMX183, IMX226, IMX250, IMX252, IMX273, IMX290, IMX327,
++ *	       IMX335, IMX392, IMX412, IMX415, IMX568, IMX900
++ */
++
++&csi1_i2c {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	vc_mipi@1a {
++		reg = <0x1a>;
++		compatible = "vc,vc_mipi";
++		csi_id = <0>;
++		status = "okay";
++
++		port {
++			vc_mipi_ep_0: endpoint {
++				data-lanes = <1 2>;
++				clock-lanes = <0>;
++				remote-endpoint  = <&mipi_csi0_ep>;
++			};
++		};
++	};
++};
++
++&mipi_csi_0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	port@0 {
++		reg = <0>;
++
++		mipi_csi0_ep: endpoint {
++			remote-endpoint = <&vc_mipi_ep_0>;
++			data-lanes = <2>;
++			csis-hs-settle = <33>;
++			csis-clk-settle = <2>;
++			csis-wclk;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi2.dtso b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi2.dtso
+new file mode 100644
+index 000000000000..f967bd71b6ae
+--- /dev/null
++++ b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-2lanes-csi2.dtso
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier:_(GPL-2.0+_OR_MIT)
++/*
++ * Copyright (C) 2025 PHYTEC Messtechnik GmbH
++ * Author: Stefan Riedmüller <s.riedmueller@phytec.de>
++ */
++
++/dts-v1/;
++/plugin/;
++
++/*
++ * Sony Sensor Lane Support:
++ * -------------------------
++ *  2   Lanes: IMX264, IMX265
++ *  2,4 Lanes: IMX178, IMX183, IMX226, IMX250, IMX252, IMX273, IMX290, IMX327,
++ *	       IMX335, IMX392, IMX412, IMX415, IMX568, IMX900
++ */
++
++&csi2_i2c {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	vc_mipi@1a {
++		reg = <0x1a>;
++		compatible = "vc,vc_mipi";
++		csi_id = <1>;
++		status = "okay";
++
++		port {
++			vc_mipi_ep_1: endpoint {
++				data-lanes = <1 2>;
++				clock-lanes = <0>;
++				remote-endpoint  = <&mipi_csi1_ep>;
++			};
++		};
++	};
++};
++
++&mipi_csi_1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	port@1 {
++		reg = <1>;
++
++		mipi_csi1_ep: endpoint {
++			remote-endpoint = <&vc_mipi_ep_1>;
++			data-lanes = <2>;
++			csis-hs-settle = <33>;
++			csis-clk-settle = <2>;
++			csis-wclk;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtso b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtso
+new file mode 100644
+index 000000000000..9e11eb442a0a
+--- /dev/null
++++ b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi1.dtso
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier:_(GPL-2.0+_OR_MIT)
++/*
++ * Copyright (C) 2025 PHYTEC Messtechnik GmbH
++ * Author: Stefan Riedmüller <s.riedmueller@phytec.de>
++ */
++
++/dts-v1/;
++/plugin/;
++
++/*
++ * Sony Sensor Lane Support:
++ * -------------------------
++ *  2   Lanes: IMX264, IMX265
++ *  2,4 Lanes: IMX178, IMX183, IMX226, IMX250, IMX252, IMX273, IMX290, IMX327,
++ *	       IMX335, IMX392, IMX412, IMX415, IMX568, IMX900
++ */
++
++&csi1_i2c {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	vc_mipi@1a {
++		reg = <0x1a>;
++		compatible = "vc,vc_mipi";
++		csi_id = <0>;
++		status = "okay";
++
++		port {
++			vc_mipi_ep_0: endpoint {
++				data-lanes = <1 2 3 4>;
++				clock-lanes = <0>;
++				remote-endpoint  = <&mipi_csi0_ep>;
++			};
++		};
++	};
++};
++
++&mipi_csi_0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	port@0 {
++		reg = <0>;
++
++		mipi_csi0_ep: endpoint {
++			remote-endpoint = <&vc_mipi_ep_0>;
++			data-lanes = <4>;
++			csis-hs-settle = <33>;
++			csis-clk-settle = <2>;
++			csis-wclk;
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi2.dtso b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi2.dtso
+new file mode 100644
+index 000000000000..381780029d16
+--- /dev/null
++++ b/arch/arm64/boot/dts/freescale/imx8mp-phyboard-pollux-vc-sony-4lanes-csi2.dtso
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier:_(GPL-2.0+_OR_MIT)
++/*
++ * Copyright (C) 2025 PHYTEC Messtechnik GmbH
++ * Author: Stefan Riedmüller <s.riedmueller@phytec.de>
++ */
++
++/dts-v1/;
++/plugin/;
++
++/*
++ * Sony Sensor Lane Support:
++ * -------------------------
++ *  2   Lanes: IMX264, IMX265
++ *  2,4 Lanes: IMX178, IMX183, IMX226, IMX250, IMX252, IMX273, IMX290, IMX327,
++ *	       IMX335, IMX392, IMX412, IMX415, IMX568, IMX900
++ */
++
++&csi2_i2c {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	vc_mipi@1a {
++		reg = <0x1a>;
++		compatible = "vc,vc_mipi";
++		csi_id = <1>;
++		status = "okay";
++
++		port {
++			vc_mipi_ep_1: endpoint {
++				data-lanes = <1 2 3 4>;
++				clock-lanes = <0>;
++				remote-endpoint  = <&mipi_csi1_ep>;
++			};
++		};
++	};
++};
++
++&mipi_csi_1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	port@1 {
++		reg = <1>;
++
++		mipi_csi1_ep: endpoint {
++			remote-endpoint = <&vc_mipi_ep_1>;
++			data-lanes = <4>;
++			csis-hs-settle = <33>;
++			csis-clk-settle = <2>;
++			csis-wclk;
++		};
++	};
++};
+-- 
+2.25.1
+
