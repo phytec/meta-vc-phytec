@@ -1,0 +1,414 @@
+From 45a964c998a797d36f414377c3cf4ed5d103a1f8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Stefan=20Riedm=C3=BCller?= <s.riedmueller@phytec.de>
+Date: Wed, 12 Feb 2025 14:44:20 +0100
+Subject: [PATCH 3/4] gstreamer-examples: Support vision components sensors
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Stefan Riedmüller <s.riedmueller@phytec.de>
+---
+ phytec-gstreamer-examples/tools/func.sh       |   3 +
+ .../tools/vc-mipi-cam-isp.conf                | 154 +++++++++++++
+ .../tools/vc-mipi-cam.conf                    | 214 ++++++++++++++++++
+ 3 files changed, 371 insertions(+)
+ create mode 100755 phytec-gstreamer-examples/tools/vc-mipi-cam-isp.conf
+ create mode 100755 phytec-gstreamer-examples/tools/vc-mipi-cam.conf
+
+diff --git a/phytec-gstreamer-examples/tools/func.sh b/phytec-gstreamer-examples/tools/func.sh
+index cb4a17319ba9..94e93efa843d 100755
+--- a/phytec-gstreamer-examples/tools/func.sh
++++ b/phytec-gstreamer-examples/tools/func.sh
+@@ -130,6 +130,9 @@ detect_sensor_type() {
+ 		ar0521 )
+ 			CONFIG_FILE="ar0521${CONFIG_EXT}.conf"
+ 			;;
++		vc-mipi-cam )
++			CONFIG_FILE="vc-mipi-cam${CONFIG_EXT}.conf"
++			;;
+ 		* ) echo "Unknown camera: ${CAM_NAME}" ; exit 1
+ 	esac
+ 
+diff --git a/phytec-gstreamer-examples/tools/vc-mipi-cam-isp.conf b/phytec-gstreamer-examples/tools/vc-mipi-cam-isp.conf
+new file mode 100755
+index 000000000000..20bf8a65018a
+--- /dev/null
++++ b/phytec-gstreamer-examples/tools/vc-mipi-cam-isp.conf
+@@ -0,0 +1,154 @@
++CAM_PHYCAM_NAME="VC-MIPI-CAM"
++
++get_vc_cam_default_parameter() {
++
++	if [ "$INTERFACE" = "CSI1" ] ; then
++		SENSOR_TYPE=$(i2cdump -f -y 2 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++	else
++		SENSOR_TYPE=$(i2cdump -f -y 1 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++	fi
++
++	case "${SENSOR_TYPE}" in
++        IMX178|IMX178C) WIDTH=3072; HEIGHT=2048; BIT_WIDTHS="8 10 12" ;;
++        IMX183|IMX183C) WIDTH=5440; HEIGHT=3648; BIT_WIDTHS="10 12" ;;
++        IMX226|IMX226C) WIDTH=3904; HEIGHT=3000; BIT_WIDTHS="10 12" ;;
++        IMX250|IMX250C) WIDTH=2432; HEIGHT=2048; BIT_WIDTHS="8 10 12" ;;
++        IMX252|IMX252C) WIDTH=2048; HEIGHT=1536; BIT_WIDTHS="8 10 12" ;;
++        IMX264|IMX264C) WIDTH=2432; HEIGHT=2048; BIT_WIDTHS="8 10 12" ;;
++        IMX265|IMX265C) WIDTH=2048; HEIGHT=1536; BIT_WIDTHS="8 10 12" ;;
++        IMX273|IMX273C) WIDTH=1440; HEIGHT=1080; BIT_WIDTHS="8 10 12" ;;
++        IMX290|IMX290C) WIDTH=1920; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX296|IMX296C) WIDTH=1440; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX297|IMX297C) WIDTH=704;  HEIGHT=540;  BIT_WIDTHS="10" ;;
++        IMX327|IMX327C) WIDTH=1920; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX335|IMX335C) WIDTH=2592; HEIGHT=1944; BIT_WIDTHS="10 12" ;;
++        IMX392|IMX392C) WIDTH=1920; HEIGHT=1200; BIT_WIDTHS="8 10 12" ;;
++        IMX412|IMX412C) WIDTH=4032; HEIGHT=3040; BIT_WIDTHS="10 12" ;;
++        IMX415|IMX415C) WIDTH=3840; HEIGHT=2160; BIT_WIDTHS="10 12" ;;
++        IMX462|IMX462C) WIDTH=1920; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX565|IMX565C) WIDTH=4128; HEIGHT=3000; BIT_WIDTHS="8 10 12" ;;
++        IMX566|IMX566C) WIDTH=2848; HEIGHT=2848; BIT_WIDTHS="8 10 12" ;;
++        IMX567|IMX567C) WIDTH=2464; HEIGHT=2064; BIT_WIDTHS="8 10 12" ;;
++        IMX568|IMX568C) WIDTH=2464; HEIGHT=2064; BIT_WIDTHS="8 10 12" ;;
++        IMX900|IMX900C) WIDTH=2048; HEIGHT=1536; BIT_WIDTHS="8 10 12" ;;
++        OV7251|OV7251C) WIDTH=640;  HEIGHT=480;  BIT_WIDTHS="8 10" ;;
++        OV9281|OV9281C) WIDTH=1280; HEIGHT=800;  BIT_WIDTHS="8 10" ;;
++        * ) echo "Unknown Sensor Type: ${SENSOR_TYPE}"; exit 1
++    esac
++
++	CAM_PHYCAM_NAME="VC-MIPI-CAM-${SENSOR_TYPE}"
++
++	if [ "$CAM_COLOR" = "COL" ] ; then
++		COLOR_STRING="SRGGB"
++	else
++		COLOR_STRING="Y"
++	fi
++}
++
++camera_select_format_interactive() {
++	camera_select_format
++}
++
++camera_select_format() {
++	GST_FMT="video/x-raw,format=YUY2"
++	GST_CONV=""
++	CAP_FMT="YUY2"
++	YAVTA_FMT="YUYV"
++
++	CTRLS=""
++	# Remove leading comma, if one exists.
++	CAM_FMT_CTRLS="${CTRLS##,}"
++}
++
++camera_select_mode_interactive() {
++
++	get_vc_cam_default_parameter
++
++	echo ""
++	echo "Select Camera Mode for VC-MIPI-CAM"
++	echo "======================================"
++	echo "	1 = ${WIDTH} x ${HEIGHT} Full"
++	echo "	2 = 1280 x 720 HD, with ISP Crop"
++	echo "	3 = 1280 x 720 HD, with ISP Scaling"
++
++	read MODE
++	echo ""
++
++	if [ -z "$MODE" ] ; then
++		MODE="1"
++	fi
++
++	mode_configure $MODE
++
++}
++
++camera_select_mode() {
++
++	get_vc_cam_default_parameter
++
++	case "$1" in
++	"Full" | "Default")
++		MODE="1"
++		;;
++	"HD" )
++		MODE="3"
++		;;
++	* )
++		MODE="$1"
++		;;
++	esac
++
++	mode_configure $MODE
++}
++
++mode_configure() {
++
++	if [ -z "$1" ] ; then
++		echo "No Mode selected to configure"
++		exit 1
++	fi
++
++	CAP_FRAME_CNT="8"
++	GST_SRC_OPTS=""
++
++	CTRLS=""
++	case $1 in
++	"1" | "")
++		CAM_MODENAME="${WIDTH}x${HEIGHT} Full"
++		CAP_WIDTH="$WIDTH"
++		CAP_HEIGHT="$HEIGHT"
++		ISP_MODE=0
++		ISP_CROP_WIDTH="$CAP_WIDTH"
++		ISP_CROP_HEIGHT="$CAP_HEIGHT"
++		ISP_CROP_TOP="0"
++		ISP_CROP_LEFT="0"
++		;;
++	"2")
++		CAM_MODENAME="1280x720 HD ISP Crop"
++		CAP_WIDTH="1280"
++		CAP_HEIGHT="720"
++		ISP_MODE=0
++		ISP_CROP_WIDTH="1280"
++		ISP_CROP_HEIGHT="720"
++		TOP="$(( (HEIGHT - 720) / 2 ))"
++		LEFT="$(( (WIDTH - 1280) / 2 ))"
++		ISP_CROP_TOP="$TOP"
++		ISP_CROP_LEFT="$LEFT"
++		GST_SRC_OPTS="crop-top=$TOP crop-bottom=$TOP crop-left=$LEFT crop-right=$LEFT"
++		;;
++	"3")
++		CAM_MODENAME="1280x720 HD ISP Scaling"
++		CAP_WIDTH="1280"
++		CAP_HEIGHT="720"
++		ISP_MODE=0
++		ISP_CROP_WIDTH="$WIDTH"
++		ISP_CROP_HEIGHT="$HEIGHT"
++		ISP_CROP_TOP="0"
++		ISP_CROP_LEFT="0"
++		;;
++	*)	echo "Mode: ${MODE} not supported with VC-MIPI-CAM" ; exit 1
++	esac
++
++	# Remove leading comma, if one exists.
++	CAM_MODE_CTRLS=${CTRLS##,}
++}
+diff --git a/phytec-gstreamer-examples/tools/vc-mipi-cam.conf b/phytec-gstreamer-examples/tools/vc-mipi-cam.conf
+new file mode 100755
+index 000000000000..05938f34fece
+--- /dev/null
++++ b/phytec-gstreamer-examples/tools/vc-mipi-cam.conf
+@@ -0,0 +1,214 @@
++CAM_PHYCAM_NAME="VC-MIPI-CAM"
++
++get_vc_cam_default_parameter() {
++
++	if [ "$INTERFACE" = "CSI1" ] ; then
++		SENSOR_TYPE=$(i2cdump -f -y 2 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++	else
++		SENSOR_TYPE=$(i2cdump -f -y 1 0x10 c 0x10 | grep -oE "(IMX|OV)[0-9]*C?")
++	fi
++
++	case "${SENSOR_TYPE}" in
++        IMX178|IMX178C) WIDTH=3072; HEIGHT=2048; BIT_WIDTHS="8 10 12" ;;
++        IMX183|IMX183C) WIDTH=5440; HEIGHT=3648; BIT_WIDTHS="10 12" ;;
++        IMX226|IMX226C) WIDTH=3904; HEIGHT=3000; BIT_WIDTHS="10 12" ;;
++        IMX250|IMX250C) WIDTH=2432; HEIGHT=2048; BIT_WIDTHS="8 10 12" ;;
++        IMX252|IMX252C) WIDTH=2048; HEIGHT=1536; BIT_WIDTHS="8 10 12" ;;
++        IMX264|IMX264C) WIDTH=2432; HEIGHT=2048; BIT_WIDTHS="8 10 12" ;;
++        IMX265|IMX265C) WIDTH=2048; HEIGHT=1536; BIT_WIDTHS="8 10 12" ;;
++        IMX273|IMX273C) WIDTH=1440; HEIGHT=1080; BIT_WIDTHS="8 10 12" ;;
++        IMX290|IMX290C) WIDTH=1920; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX296|IMX296C) WIDTH=1440; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX297|IMX297C) WIDTH=704;  HEIGHT=540;  BIT_WIDTHS="10" ;;
++        IMX327|IMX327C) WIDTH=1920; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX335|IMX335C) WIDTH=2592; HEIGHT=1944; BIT_WIDTHS="10 12" ;;
++        IMX392|IMX392C) WIDTH=1920; HEIGHT=1200; BIT_WIDTHS="8 10 12" ;;
++        IMX412|IMX412C) WIDTH=4032; HEIGHT=3040; BIT_WIDTHS="10 12" ;;
++        IMX415|IMX415C) WIDTH=3840; HEIGHT=2160; BIT_WIDTHS="10 12" ;;
++        IMX462|IMX462C) WIDTH=1920; HEIGHT=1080; BIT_WIDTHS="10" ;;
++        IMX565|IMX565C) WIDTH=4128; HEIGHT=3000; BIT_WIDTHS="8 10 12" ;;
++        IMX566|IMX566C) WIDTH=2848; HEIGHT=2848; BIT_WIDTHS="8 10 12" ;;
++        IMX567|IMX567C) WIDTH=2464; HEIGHT=2064; BIT_WIDTHS="8 10 12" ;;
++        IMX568|IMX568C) WIDTH=2464; HEIGHT=2064; BIT_WIDTHS="8 10 12" ;;
++        IMX900|IMX900C) WIDTH=2048; HEIGHT=1536; BIT_WIDTHS="8 10 12" ;;
++        OV7251|OV7251C) WIDTH=640;  HEIGHT=480;  BIT_WIDTHS="8 10" ;;
++        OV9281|OV9281C) WIDTH=1280; HEIGHT=800;  BIT_WIDTHS="8 10" ;;
++        * ) echo "Unknown Sensor Type: ${SENSOR_TYPE}"; exit 1
++    esac
++
++	CAM_PHYCAM_NAME="VC-MIPI-CAM-${SENSOR_TYPE}"
++
++	if [ "$CAM_COLOR" = "COL" ] ; then
++		COLOR_STRING="SRGGB"
++	else
++		COLOR_STRING="Y"
++	fi
++}
++
++camera_select_format_interactive() {
++
++	echo "Select Camera Sensor Format for VC-MIPI-CAM"
++	echo "==============================================="
++
++	get_vc_cam_default_parameter
++
++	N=1
++	for BITS in $BIT_WIDTHS ; do
++		echo "	$N = ${COLOR_STRING}${BITS}_1X${BITS}"
++		N=$((N + 1))
++	done
++
++	read FMT_INDEX
++	echo ""
++
++	N=1
++	for BITS in $BIT_WIDTHS ; do
++		echo "$N - $FMT_INDEX"
++		if [ "$N" = "$FMT_INDEX" ]; then
++			CAM_FMT="${COLOR_STRING}${BITS}_1X${BITS}"
++			break
++		fi
++		N=$((N + 1))
++	done
++
++	format_configure $CAM_FMT
++}
++
++camera_select_format() {
++
++	if [ -z "$1" ] ; then
++		get_vc_cam_default_parameter
++		BITS="${BIT_WIDTHS%% *}"
++		CAM_FMT="${COLOR_STRING}${BITS}_1X${BITS}"
++	else
++		CAM_FMT=$1
++	fi
++
++	format_configure $CAM_FMT
++}
++
++format_configure() {
++
++	if [ -z "$1" ] ; then
++		echo "No Format selected to configure"
++		exit 1
++	fi
++
++	case $1 in
++		"SRGGB8_1X8")
++			CAP_FMT="RGGB"
++			YAVTA_FMT="SRGGB8"
++			GST_FMT="video/x-bayer,format=rggb"
++			GST_CONV="bayer2rgbneon"
++			;;
++		"SRGGB10_1X10")
++			CAP_FMT="RG10"
++			YAVTA_FMT="SRGGB10"
++			GST_FMT=""
++			GST_CONV="bayer2rgbneon"
++			;;
++		"SRGGB12_1X12")
++			CAP_FMT="RG12"
++			YAVTA_FMT="SRGGB12"
++			GST_FMT=""
++			GST_CONV="bayer2rgbneon"
++			;;
++		"Y8_1X8")
++			CAP_FMT="GREY"
++			YAVTA_FMT="Y8"
++			GST_FMT="video/x-raw,format=GRAY8"
++			GST_CONV="videoconvert n-threads=4"
++			;;
++		"Y10_1X10")
++			CAP_FMT="Y10"
++			YAVTA_FMT="Y10"
++			GST_FMT=""
++			GST_CONV="videoconvert n-threads=4"
++			;;
++		"Y12_1X12")
++			CAP_FMT="Y12"
++			YAVTA_FMT="Y12"
++			GST_FMT=""
++			GST_CONV="videoconvert n-threads=4"
++			;;
++		*) echo "Unsupported Sensor Format: $1" ; exit 1
++	esac
++
++	CTRLS=""
++	# Remove leading comma, if one exists.
++	CAM_FMT_CTRLS="${CTRLS##,}"
++
++}
++
++camera_select_mode_interactive() {
++
++	echo ""
++	echo "Select Camera Mode for VC-MIPI-CAM"
++	echo "======================================"
++	echo "	1 = ${WIDTH} x ${HEIGHT} Full"
++	echo "	2 = 1280 x 720 HD, ROI"
++
++	read MODE
++	echo ""
++
++	if [ -z "$MODE" ] ; then
++		MODE="1"
++	fi
++
++	mode_configure $MODE
++
++}
++
++camera_select_mode() {
++
++	case "$1" in
++	"Full" | "Default")
++		MODE="1"
++		;;
++	"HD" )
++		MODE="2"
++		;;
++	* )
++		MODE="$1"
++		;;
++	esac
++
++	mode_configure $MODE
++}
++
++mode_configure() {
++
++	if [ -z "$1" ] ; then
++		echo "No Mode selected to configure"
++		exit 1
++	fi
++
++	CAP_FRAME_CNT="8"
++	GST_SRC_OPTS=""
++
++	CTRLS=""
++	case $1 in
++	"1" | "")
++		CAM_MODENAME="${WIDTH}x${HEIGHT} Full"
++		CAM_WIDTH="${WIDTH}"
++		CAM_HEIGHT="${HEIGHT}"
++		CAM_OFFSET_TOP="0"
++		CAM_OFFSET_LEFT="0"
++		CAP_WIDTH="${WIDTH}"
++		CAP_HEIGHT="${HEIGHT}"
++		;;
++	"2")
++		CAM_MODENAME="1280x720 HD"
++		CAM_WIDTH="1280"
++		CAM_HEIGHT="720"
++		CAM_OFFSET_TOP="$(( (HEIGHT - 720) / 2 ))"
++		CAM_OFFSET_LEFT="$(( (WIDTH - 1280) / 2 ))"
++		CAP_WIDTH="1280"
++		CAP_HEIGHT="720"
++		;;
++	*)	echo "Mode: ${MODE} not supported with VC-MIPI-CAM" ; exit 1
++	esac
++
++	# Remove leading comma, if one exists.
++	CAM_MODE_CTRLS=${CTRLS##,}
++}
+-- 
+2.25.1
+

@@ -1,0 +1,259 @@
+From 64d1234afd40ee4d755963311d0f5863d4e9b359 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Stefan=20Riedm=C3=BCller?= <s.riedmueller@phytec.de>
+Date: Wed, 12 Feb 2025 14:45:01 +0100
+Subject: [PATCH 4/4] opencv-examples: Support vision-components sensors
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Stefan Riedmüller <s.riedmueller@phytec.de>
+---
+ phytec-opencv-examples/python/phycam.py  |  44 ++++---
+ phytec-opencv-examples/python/vc_mipi.py | 139 +++++++++++++++++++++++
+ 2 files changed, 165 insertions(+), 18 deletions(-)
+ create mode 100755 phytec-opencv-examples/python/vc_mipi.py
+
+diff --git a/phytec-opencv-examples/python/phycam.py b/phytec-opencv-examples/python/phycam.py
+index f26020a966bf..e6798522f1c9 100755
+--- a/phytec-opencv-examples/python/phycam.py
++++ b/phytec-opencv-examples/python/phycam.py
+@@ -3,10 +3,9 @@ import os
+ import re
+ import subprocess
+ 
+-from phycam_config import ar0144_formats, ar0234_formats, ar0521_formats
+-from phycam_config import ar0144_modes, ar0234_modes, ar0521_modes
+-from phycam_config_isp import ar0144_formats_isp, ar0234_formats_isp, ar0521_formats_isp
+-from phycam_config_isp import ar0144_modes_isp, ar0234_modes_isp, ar0521_modes_isp
++import phycam_config
++import phycam_config_isp
++import vc_mipi
+ 
+ 
+ class PhyCam():
+@@ -17,26 +16,30 @@ class PhyCam():
+ 
+         if self._isp:
+             self._modes = {
+-                "ar0144": ar0144_modes_isp,
+-                "ar0234": ar0234_modes_isp,
+-                "ar0521": ar0521_modes_isp,
++                "ar0144": phycam_config_isp.ar0144_modes_isp,
++                "ar0234": phycam_config_isp.ar0234_modes_isp,
++                "ar0521": phycam_config_isp.ar0521_modes_isp,
++                "vc-mipi-cam": {},
+             }
+             self._formats = {
+-                "ar0144": ar0144_formats_isp,
+-                "ar0234": ar0234_formats_isp,
+-                "ar0521": ar0521_formats_isp,
++                "ar0144": phycam_config_isp.ar0144_formats_isp,
++                "ar0234": phycam_config_isp.ar0234_formats_isp,
++                "ar0521": phycam_config_isp.ar0521_formats_isp,
++                "vc-mipi-cam": {},
+             }
+             self._videodev = "/dev/video-isp-csi1"
+         else:
+             self._modes = {
+-                "ar0144": ar0144_modes,
+-                "ar0234": ar0234_modes,
+-                "ar0521": ar0521_modes,
++                "ar0144": phycam_config.ar0144_modes,
++                "ar0234": phycam_config.ar0234_modes,
++                "ar0521": phycam_config.ar0521_modes,
++                "vc-mipi-cam": {},
+             }
+             self._formats = {
+-                "ar0144": ar0144_formats,
+-                "ar0234": ar0234_formats,
+-                "ar0521": ar0521_formats,
++                "ar0144": phycam_config.ar0144_formats,
++                "ar0234": phycam_config.ar0234_formats,
++                "ar0521": phycam_config.ar0521_formats,
++                "vc-mipi-cam": {},
+             }
+             self._videodev = "/dev/video-isi-csi1"
+ 
+@@ -44,6 +47,7 @@ class PhyCam():
+             "ar0144": "VM-016 / VM-116",
+             "ar0234": "VM-020 / VM-120",
+             "ar0521": "VM-017 / VM-117",
++            "vc-mipi-cam": "VC-MIPI-CAM",
+         }
+ 
+         if os.path.islink("/dev/cam-csi1"):
+@@ -69,6 +73,10 @@ class PhyCam():
+         if self._driver not in self._modes:
+             raise RuntimeError(f"Detected camera of type {self._driver} not supported!")
+ 
++        if self._driver == "vc-mipi-cam":
++            self._modes["vc-mipi-cam"] = vc_mipi.get_vc_mipi_modes(isp)
++            self._formats["vc-mipi-cam"] = vc_mipi.get_vc_mipi_formats(isp)
++
+         command = ["v4l2-ctl", "-d", self._subdev, "--get-subdev-fmt", "0"]
+         result = subprocess.run(command, capture_output=True)
+         output = result.stdout
+@@ -140,13 +148,13 @@ class PhyCam():
+         command = [
+             "setup-pipeline-csi1",
+             "-p", str(self._port),
+-            "-f", fmt["cam"],
+-            "-s", f"{mode['cap_width']}x{mode['cap_height']}",
+         ]
+ 
+         if self._isp:
+             command.extend(["-i", "ISP"])
+         else:
++            command.extend(["-f", fmt["cam"]])
++            command.extend(["-s", f"{mode['cap_width']}x{mode['cap_height']}"])
+             command.extend(["-o", mode["offset"]])
+             command.extend(["-c", f"{mode['width']}x{mode['height']}"])
+ 
+diff --git a/phytec-opencv-examples/python/vc_mipi.py b/phytec-opencv-examples/python/vc_mipi.py
+new file mode 100755
+index 000000000000..f756fed58596
+--- /dev/null
++++ b/phytec-opencv-examples/python/vc_mipi.py
+@@ -0,0 +1,139 @@
++import cv2
++import subprocess
++import re
++
++
++vc_cams = {
++    "IMX178": {"width": 3072, "height": 2048, "bit_widths": [8, 10, 12]},
++    "IMX183": {"width": 5440, "height": 3648, "bit_widths": [10, 12]},
++    "IMX226": {"width": 3904, "height": 3000, "bit_widths": [10, 12]},
++    "IMX250": {"width": 2432, "height": 2048, "bit_widths": [8, 10, 12]},
++    "IMX252": {"width": 2048, "height": 1536, "bit_widths": [8, 10, 12]},
++    "IMX264": {"width": 2432, "height": 2048, "bit_widths": [8, 10, 12]},
++    "IMX265": {"width": 2048, "height": 1536, "bit_widths": [8, 10, 12]},
++    "IMX273": {"width": 1440, "height": 1080, "bit_widths": [8, 10, 12]},
++    "IMX290": {"width": 1920, "height": 1080, "bit_widths": [10]},
++    "IMX296": {"width": 1440, "height": 1080, "bit_widths": [10]},
++    "IMX297": {"width": 704,  "height": 540,  "bit_widths": [10]},
++    "IMX327": {"width": 1920, "height": 1080, "bit_widths": [10]},
++    "IMX335": {"width": 2592, "height": 1944, "bit_widths": [10, 12]},
++    "IMX392": {"width": 1920, "height": 1200, "bit_widths": [8, 10, 12]},
++    "IMX412": {"width": 4032, "height": 3040, "bit_widths": [10, 12]},
++    "IMX415": {"width": 3840, "height": 2160, "bit_widths": [10, 12]},
++    "IMX462": {"width": 1920, "height": 1080, "bit_widths": [10]},
++    "IMX565": {"width": 4128, "height": 3000, "bit_widths": [8, 10, 12]},
++    "IMX566": {"width": 2848, "height": 2848, "bit_widths": [8, 10, 12]},
++    "IMX567": {"width": 2464, "height": 2064, "bit_widths": [8, 10, 12]},
++    "IMX568": {"width": 2464, "height": 2064, "bit_widths": [8, 10, 12]},
++    "IMX900": {"width": 2048, "height": 1536, "bit_widths": [8, 10, 12]},
++    "OV7251": {"width": 640,  "height": 480,  "bit_widths": [8, 10]},
++    "OV9281": {"width": 1280, "height": 800,  "bit_widths": [8, 10]},
++}
++
++def get_vc_mipi_sensor_type():
++    command = ["i2cdump", "-f", "-y", "2", "0x10", "c", "0x10"]
++    result = subprocess.run(command, capture_output=True)
++
++    match = re.search(r"((IMX|OV)[0-9]*)C?", result.stdout.decode())
++    if match:
++        sensor_type = match.group(1)
++    else:
++        raise RuntimeError("Could not identify VC-MIPI-CAM sensor type.")
++
++    return vc_cams[sensor_type]
++
++
++def get_vc_mipi_formats(isp=False):
++    sensor = get_vc_mipi_sensor_type()
++
++    if not isp and not sensor['bit_widths'][0] == 8:
++        raise RuntimeError(f"VC-MIPI-CAM does not support 8 Bit formats.")
++
++    formats = {
++        "color": {
++            "cam": f"SRGGB{sensor['bit_widths'][0]}_1X{sensor['bit_widths'][0]}",
++            "opencv": cv2.COLOR_BAYER_BG2BGR,
++            "gst": "video/x-bayer,format=rggb",
++            "controls": [],
++        },
++        "monochrome": {
++            "cam": f"Y{sensor['bit_widths'][0]}_1X{sensor['bit_widths'][0]}",
++            "opencv": None,
++            "gst": "video/x-raw,format=GRAY8",
++            "controls": [],
++        },
++    }
++
++    formats_isp = {
++        "color": {
++            "cam": f"SRGGB{sensor['bit_widths'][-1]}_1X{sensor['bit_widths'][-1]}",
++            "opencv": cv2.COLOR_YUV2BGRA_YUY2,
++            "gst": "video/x-raw,format=YUY2",
++            "controls": [],
++        },
++        "monochrome": {
++            "cam": f"Y{sensor['bit_widths'][-1]}_1X{sensor['bit_widths'][-1]}",
++            "opencv": cv2.COLOR_YUV2BGRA_YUY2,
++            "gst": "video/x-raw,format=YUY2",
++            "controls": [],
++        },
++    }
++
++    if isp:
++        return formats_isp
++
++    return formats
++
++
++def get_vc_mipi_modes(isp=False):
++    sensor = get_vc_mipi_sensor_type()
++    if not sensor:
++        return None
++
++    width = sensor["width"]
++    height = sensor["height"]
++    hd_left = (width - 1280) / 2
++    hd_top = (height - 720) / 2
++
++    modes = {
++        "Full": {
++            "name": f"{width}x{height} Full",
++            "width": width,
++            "height": height,
++            "offset": "(0,0)",
++            "cap_width": width,
++            "cap_height": height,
++            "controls": [],
++        },
++        "HD": {
++            "name": "1280x720 HD",
++            "width": 1280,
++            "height": 720,
++            "offset": f"({hd_left},{hd_top})",
++            "cap_width": 1280,
++            "cap_height": 720,
++            "controls": [],
++        },
++    }
++
++    modes_isp = {
++        "Full": {
++            "name": f"{width}x{height} Full",
++            "mode": 0,
++            "cap_width": width,
++            "cap_height": height,
++            "controls": [],
++        },
++        "HD": {
++            "name": "1280x720 HD ISP Scaling",
++            "mode": 0,
++            "cap_width": 1280,
++            "cap_height": 720,
++            "controls": [],
++        },
++    }
++
++    if isp:
++        return modes_isp
++
++    return modes
+-- 
+2.25.1
+
